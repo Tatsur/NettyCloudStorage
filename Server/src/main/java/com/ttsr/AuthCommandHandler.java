@@ -8,9 +8,11 @@ import io.netty.channel.SimpleChannelInboundHandler;
 public class AuthCommandHandler extends SimpleChannelInboundHandler<Command> {
 
     private final ServerApp serverApp;
+    private final AuthService authService;
 
     public AuthCommandHandler(ServerApp serverApp) {
         this.serverApp = serverApp;
+        authService = serverApp.getAuthService();
     }
 
     @Override
@@ -19,10 +21,11 @@ public class AuthCommandHandler extends SimpleChannelInboundHandler<Command> {
             AuthCmdData authCommand = (AuthCmdData) command.getData();
             String login = authCommand.getLogin();
             String password = authCommand.getPassword();
-            AuthService authService = serverApp.getAuthService();
-            authService.start();
+            System.out.println(login+ " " + password);
             String authLogin = authService.getLogin(login, password);
+            System.out.println("authLogin  "+login);
             if (authLogin != null) {
+                ctx.writeAndFlush(new Command().okCmd(login,"Authentication successful"));
                 ctx.pipeline().remove(AuthCommandHandler.class);
                 ctx.pipeline().addLast(new InCommandHandler(serverApp, login));
                 ctx.pipeline().get(InCommandHandler.class).channelActive(ctx);

@@ -3,62 +3,84 @@ package com.ttsr.controllers;
 import com.ttsr.ClientApp;
 import com.ttsr.models.Network;
 import javafx.collections.FXCollections;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.scene.control.*;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 
 import java.io.*;
+import java.net.URL;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ResourceBundle;
 
-public class ViewController {
+public class ViewController implements Initializable {
 
     @FXML
-    public ListView<String> usersList;
-    public Button changeUsernameButton;
+    public ListView<String> yourList;
+    @FXML
+    public ListView<String> cloudList;
 
     @FXML
     private Button sendButton;
     @FXML
-    private TextArea chatHistory;
+    private TextArea commandLog;
     @FXML
     private TextField textField;
 
     private Network network;
 
-    private String selectedRecipient;
+    private String selectedFile;
 
-    private static final String HISTORY_FILE_NAME = "chatHistory.txt";
+    private static final String HISTORY_FILE_NAME = "commandLog.txt";
 
-    @FXML
-    public void initialize() {
-        usersList.setItems(FXCollections.observableArrayList(ClientApp.USERS_TEST_DATA));
-        sendButton.setOnAction(event -> sendMessage());
-        changeUsernameButton.setOnAction(event -> {
-            try {
-                ClientApp.showChangeUsernameDialog();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
-        textField.setOnAction(event -> sendMessage());
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        yourList.setItems(FXCollections.observableArrayList(ClientApp.USERS_TEST_DATA));
 
-        usersList.setCellFactory(lv -> {
-            MultipleSelectionModel<String> selectionModel = usersList.getSelectionModel();
+        yourList.setCellFactory(lv -> {
+            MultipleSelectionModel<String> selectionModel = yourList.getSelectionModel();
             ListCell<String> cell = new ListCell<>();
             cell.textProperty().bind(cell.itemProperty());
             cell.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
-                usersList.requestFocus();
+                yourList.requestFocus();
                 if (! cell.isEmpty()) {
                     int index = cell.getIndex();
                     if (selectionModel.getSelectedIndices().contains(index)) {
                         selectionModel.clearSelection(index);
-                        selectedRecipient = null;
+                        selectedFile = null;
                     } else {
                         selectionModel.select(index);
-                        selectedRecipient = cell.getItem();
+                        selectedFile = cell.getItem();
+                    }
+                    event.consume();
+                }
+            });
+            cell.setOnMouseClicked(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    if(event.getButton().equals(MouseButton.PRIMARY)){
+                        if(event.getClickCount() == 2){
+                            String fileName = cell.getItem();
+                            sendFile(fileName);
+                        }
+                    }
+                }
+            });
+            cell.addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
+                yourList.requestFocus();
+                if (! cell.isEmpty()) {
+                    int index = cell.getIndex();
+                    if (selectionModel.getSelectedIndices().contains(index)) {
+                        selectionModel.clearSelection(index);
+                        selectedFile = null;
+                    } else {
+                        selectionModel.select(index);
+                        selectedFile = cell.getItem();
                     }
                     event.consume();
                 }
@@ -67,22 +89,19 @@ public class ViewController {
         });
     }
 
-    private void sendMessage() {
+    private void sendFile(String fileName) {
         String message = textField.getText();
         appendMessage("Я: " + message);
         textField.clear();
-        try {
-            if(selectedRecipient != null){
-                network.sendPrivateMessage(message,selectedRecipient);
+//        try {
+            if(selectedFile != null){
+                network.sendFile(message, selectedFile);
             }
-            else {
-                network.sendMessage(message);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            String errorMessage = "Failed to send message";
-            ClientApp.showNetworkError(e.getMessage(), errorMessage);
-        }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            String errorMessage = "Failed to send file";
+//            ClientApp.showNetworkError(e.getMessage(), errorMessage);
+//        }
     }
 
     public void setNetwork(Network network) {
@@ -91,16 +110,16 @@ public class ViewController {
 
     public void appendMessage(String message) {
         String timestamp = DateFormat.getInstance().format(new Date());
-        chatHistory.appendText(timestamp);
-        chatHistory.appendText(System.lineSeparator());
-        chatHistory.appendText(message);
-        chatHistory.appendText(System.lineSeparator());
-        chatHistory.appendText(System.lineSeparator());
+        commandLog.appendText(timestamp);
+        commandLog.appendText(System.lineSeparator());
+        commandLog.appendText(message);
+        commandLog.appendText(System.lineSeparator());
+        commandLog.appendText(System.lineSeparator());
     }
     public void saveHistory(){
         File historyFile = new File(HISTORY_FILE_NAME);
         try (OutputStreamWriter outputStreamWriter = new OutputStreamWriter(new FileOutputStream(historyFile))){
-            outputStreamWriter.write(chatHistory.getText());
+            outputStreamWriter.write(commandLog.getText());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -115,8 +134,8 @@ public class ViewController {
                 lines.remove(0);
             }
             for (String line : lines) {
-                chatHistory.appendText(line);
-                chatHistory.appendText(System.lineSeparator());
+                commandLog.appendText(line);
+                commandLog.appendText(System.lineSeparator());
             }
         }  catch (IOException e) {
             e.printStackTrace();
@@ -127,7 +146,9 @@ public class ViewController {
         ClientApp.showNetworkError(message, title);
     }
 
-    public void updateUsers(List<String> users) {
-        usersList.setItems(FXCollections.observableArrayList(users));
+    public void updateFileList(List<String> fileList) {
+        cloudList.setItems(FXCollections.observableArrayList(fileList));
     }
+
+
 }

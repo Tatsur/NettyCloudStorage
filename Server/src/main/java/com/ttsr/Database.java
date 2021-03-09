@@ -19,8 +19,8 @@ public class Database {
             System.out.println("Database connected");
 //            logger.log(Level.INFO,"Database connected");
             this.connection = connection;
-            createDB();
-            writeDB();
+//            createDB();
+//            writeDB();
             users = getUsersFromDB();
         } catch (SQLException e ){
             logger.log(Level.ERROR,e.getMessage());
@@ -70,8 +70,10 @@ public class Database {
             while (resultSet.next()) {
                 String login = resultSet.getString("login");
                 String password = resultSet.getString("password");
-                String username = resultSet.getString("username");
                 users.add(new User(login,password));
+            }
+            for (User user : users) {
+                System.out.println(user);
             }
         }
         return users;

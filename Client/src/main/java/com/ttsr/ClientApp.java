@@ -30,14 +30,14 @@ public class ClientApp extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        this.primaryStage = primaryStage;
+        ClientApp.primaryStage = primaryStage;
         network = new Network();
         if (!network.connect()) {
             showNetworkError("", "Failed to connect to server");
             return;
         }
         openAuthDialog(primaryStage);
-        createChatDialog(primaryStage);
+        creatCloudView(primaryStage);
     }
 
     public static void showNetworkError(String errorDetails, String errorTitle) {
@@ -50,24 +50,13 @@ public class ClientApp extends Application {
             if(isClose) Platform.exit();
         });
     }
-    public static void showChangeUsernameDialog() throws IOException {
+    private void creatCloudView(Stage primaryStage) throws IOException {
         FXMLLoader mainLoader = new FXMLLoader();
-        mainLoader.setLocation(ClientApp.class.getResource("/views/changeUsernameDialog.fxml"));
-        Parent root = mainLoader.load();
-        changeNameDialogStage = new Stage();
-        changeNameDialogStage.setTitle("Change username");
-        changeNameDialogStage.setScene(new Scene(root));
-        changeNameDialogStage.initModality(Modality.APPLICATION_MODAL);
-        changeNameDialogStage.initOwner(primaryStage);
-        changeNameDialogStage.show();
-    }
-    private void createChatDialog(Stage primaryStage) throws IOException {
-        FXMLLoader mainLoader = new FXMLLoader();
-        mainLoader.setLocation(ClientApp.class.getResource("/views/view.fxml"));
+        mainLoader.setLocation(ClientApp.class.getResource("/com.ttsr/views/view.fxml"));
 
         Parent root = mainLoader.load();
 
-        primaryStage.setTitle("Messenger");
+        primaryStage.setTitle("Netty Cloud Storage");
         primaryStage.setScene(new Scene(root, 600, 400));
 
         viewController = mainLoader.getController();
@@ -81,11 +70,11 @@ public class ClientApp extends Application {
     }
     private void openAuthDialog(Stage primaryStage) throws IOException {
         FXMLLoader authLoader = new FXMLLoader();
-        authLoader.setLocation(ClientApp.class.getResource("/views/authDialog.fxml"));
+        authLoader.setLocation(ClientApp.class.getResource("/com.ttsr/views/authDialog.fxml"));
         Parent authDialogPanel = authLoader.load();
         authDialogStage = new Stage();
 
-        authDialogStage.setTitle("Аутентификая чата");
+        authDialogStage.setTitle("Authentication");
         authDialogStage.initModality(Modality.WINDOW_MODAL);
         authDialogStage.initOwner(primaryStage);
         Scene scene = new Scene(authDialogPanel);
@@ -106,7 +95,7 @@ public class ClientApp extends Application {
     public void openChat() {
         authDialogStage.close();
         primaryStage.show();
-        primaryStage.setTitle(network.getUsername());
+        primaryStage.setTitle(network.getLogin());
         network.waitMessages(viewController);
     }
 }
