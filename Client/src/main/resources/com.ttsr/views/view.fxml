@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.TextArea?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.Pane?>
-<?import javafx.scene.text.Font?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
 
-
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/11.0.1" fx:controller="com.ttsr.controllers.ViewController" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.ttsr.controllers.ViewController">
    <top>
       <Pane prefHeight="44.0" prefWidth="600.0" style="-fx-background-color: lightblue;" BorderPane.alignment="CENTER">
          <children>
@@ -23,8 +19,8 @@
    <center>
       <Pane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
          <children>
-            <ListView fx:id="yourList" layoutX="13.0" layoutY="22.0" prefHeight="200.0" prefWidth="270.0" />
-            <ListView fx:id="cloudList" layoutX="306.0" layoutY="22.0" prefHeight="200.0" prefWidth="280.0" />
+            <ListView fx:id="yourList" layoutX="13.0" layoutY="22.0" prefHeight="200.0" prefWidth="265.0" />
+            <ListView fx:id="cloudList" layoutX="321.0" layoutY="22.0" prefHeight="200.0" prefWidth="265.0" />
             <Label layoutX="127.0" layoutY="6.0" text="Your files" />
             <Label layoutX="418.0" layoutY="6.0" text="Cloud files" />
          </children>
@@ -33,8 +29,9 @@
    <bottom>
       <Pane prefHeight="120.0" prefWidth="600.0" BorderPane.alignment="CENTER">
          <children>
-            <Label layoutX="14.0" layoutY="1.0" prefHeight="26.0" prefWidth="149.0" text="Commands log" />
+            <Label layoutX="14.0" layoutY="1.0" prefHeight="26.0" prefWidth="94.0" text="Commands log" />
             <TextArea fx:id="commandLog" layoutX="13.0" layoutY="29.0" prefHeight="77.0" prefWidth="574.0" />
+            <ProgressBar fx:id="progressBar" layoutX="200.0" layoutY="8.0" prefHeight="13.0" prefWidth="200.0" progress="0.0" />
          </children>
       </Pane>
    </bottom>

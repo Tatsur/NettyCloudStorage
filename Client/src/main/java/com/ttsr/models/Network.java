@@ -3,29 +3,56 @@ package com.ttsr.models;
 import com.ttsr.Command;
 import com.ttsr.CommandType;
 import com.ttsr.ClientApp;
-import com.ttsr.commands.ErrCmdData;
-import com.ttsr.commands.GetFileCmdData;
-import com.ttsr.commands.OkCmdData;
-import com.ttsr.commands.SendFileListData;
+import com.ttsr.commands.*;
 import com.ttsr.controllers.ViewController;
-import io.netty.handler.codec.serialization.ObjectDecoderInputStream;
-import io.netty.handler.codec.serialization.ObjectEncoderOutputStream;
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.serialization.*;
 import javafx.application.Platform;
+import javafx.beans.value.ObservableDoubleValue;
 
+import javax.swing.*;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.Socket;
+import java.util.ArrayList;
 
 public class Network {
 
     private static final String SERVER_ADDRESS = "localhost";
     private static final int SERVER_PORT = 8189;
+    public static final int BUFFER_SIZE = 32768;
+    public static byte[] buffer;
 
     private final String host;
     private final int port;
-    private ObjectEncoderOutputStream os;
-    private ObjectDecoderInputStream is;
-    private Socket socket;
+
     public String login;
+    public ViewController viewController;
+    private ClientApp clientApp;
+
+    public ClientApp getClientApp() {
+        return clientApp;
+    }
+
+    public void setClientApp(ClientApp clientApp) {
+        this.clientApp = clientApp;
+    }
+
+    public boolean connected;
+    public boolean authOk;
+
+    private Channel channel;
+    private EventLoopGroup group;
+
+    public void setViewController(ViewController viewController) {
+        this.viewController = viewController;
+    }
 
     public Network() {
         this(SERVER_ADDRESS, SERVER_PORT);
@@ -36,164 +63,88 @@ public class Network {
         this.port = port;
     }
 
-    public boolean connect() {
+    public void connect() {
+        group = new NioEventLoopGroup();
+
         try {
-            socket = new Socket(host, port);
-            os = new ObjectEncoderOutputStream(socket.getOutputStream());
-            is = new ObjectDecoderInputStream(socket.getInputStream());
-            return true;
-        } catch (IOException e) {
-            System.err.println("Соединение не было установлено!");
+            Bootstrap bootstrap = new Bootstrap().group(group)
+                    .channel(NioSocketChannel.class)
+                    .remoteAddress(SERVER_ADDRESS,SERVER_PORT)
+                    .handler(new ChannelInitializer<SocketChannel>() {
+
+                        @Override
+                        protected void initChannel(SocketChannel channel) throws Exception {
+                            channel.pipeline().addLast(
+                                    new ObjectEncoder(),
+                                    new ObjectDecoder(ClassResolvers.cacheDisabled(null)),
+                                    new OutHandler(),
+                                    new AuthHandler(Network.this)
+                            );
+                        }
+                    });
+            ChannelFuture future = bootstrap.connect().sync();
+            buffer = new byte[BUFFER_SIZE];
+            channel = future.channel();
+            connected = true;
+            sendFileListRequest(null);
+            channel.closeFuture().sync();
+        } catch (Exception e) {
             e.printStackTrace();
-            return false;
+            connected = false;
+        } finally {
+            group.shutdownGracefully();
         }
     }
-    public void checkConnectionStatus(){
-        Thread thread = new Thread(()-> {
-            while(true)
-            {
-                try {
-                    Command command = readCommand();
-                    if (command.getType() == CommandType.ERROR) {
-                        System.out.println("got auth_error command");
-                        ErrCmdData data = (ErrCmdData) command.getData();
-                        ClientApp.isClose = true;
-                        Platform.runLater(() -> {
-                            ClientApp.showNetworkError(data.getErrMsg(), "Connection error");
-                        });
-                        close();
-                        break;
-                    }
 
-                } catch (IOException e) {
-                    System.err.println("Unknown command");
-                    e.printStackTrace();
-                }
-            }
-        });
-        thread.setDaemon(true);
-        thread.start();
-    }
-    public String sendAuthCommand(String login, String password) {
+    public void sendAuthCommand(String login, String password) {
         try {
             Command authCommand = new Command().authCmd(login, password);
-            os.writeObject(authCommand);
-            Command command = readCommand();
-            if(command == null){
-                return "Failed to read command from server";
-            }
-            System.out.println(command.getType().name());
-            switch (command.getType()){
-                case OK: {
-                    OkCmdData data = (OkCmdData) command.getData();
-                    this.login = data.getLogin();
-                    System.out.println(login);
-                    return null;
-                }
-                case ERROR:{
-                    System.out.println("got auth_error command");
-                    ErrCmdData data = (ErrCmdData) command.getData();
-                    return data.getErrMsg();
-                }
-                default:
-                    return "Unknown type of command from server: " + command.getType();
-            }
+            sendCommand(authCommand);
         } catch (IOException e) {
             e.printStackTrace();
-            return e.getMessage();
         }
-    }
-
-    public ObjectEncoderOutputStream getOs() {
-        return os;
-    }
-
-    public ObjectDecoderInputStream getIs() {
-        return is;
-    }
-
-    private Command readCommand() throws IOException {
-        try {
-            return  (Command) is.readObject();
-        } catch (ClassNotFoundException | ClassCastException e) {
-            String errorMessage = "Unknown type of object from client!";
-            System.err.println(errorMessage);
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    public void waitMessages(ViewController viewController) {
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    while (true) {
-                        Command command = readCommand();
-                        if(command == null){
-                            viewController.showError("Server error","Invalid command from server!");
-                            continue;
-                        }
-                        switch (command.getType()){
-                            case GET: {
-                                GetFileCmdData data = (GetFileCmdData) command.getData();
-                                String message = data.getFileName();
-                                Platform.runLater(() -> {
-//                                    viewController.appendMessage(formattedMsg);
-                                });
-                                break;
-                            }
-                            case LS: {
-                                SendFileListData data = (SendFileListData) command.getData();
-                                Platform.runLater(() -> {
-                                    viewController.updateFileList(data.getFileList());
-                                });
-                                break;
-                            }
-                            case ERROR: {
-                                ErrCmdData data = (ErrCmdData) command.getData();
-                                String errorMsg = data.getErrMsg();
-                                Platform.runLater(() -> {
-                                    viewController.showError("Server error", errorMsg);
-                                });
-                                break;
-                            }
-                            default:{
-                                viewController.showError("Unknown command from server",command.getType().toString());
-                            }
-
-                        }
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    System.out.println("Соединение было потеряно!");
-                }
-            }
-        });
-        thread.setDaemon(true);
-        thread.start();
     }
 
     public void close() {
-        try {
-            socket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        channel.writeAndFlush(new Command().errCmd("Client closed connection"));
+        group.shutdownGracefully();
     }
     private  void sendCommand(Command command) throws IOException {
-        os.writeObject(command);
-        os.flush();
-    }
-
-    public void setChatMode() {
-        waitMessages(null);
+        channel.writeAndFlush(command);
     }
 
     public String getLogin() {
         return login;
     }
 
-    public void sendFile(String message, String selectedFile) {
+    public void sendFileRequest(String fileName, Long fileSize) throws IOException {
+        Command fileCmdData = new Command().sendFile(fileName,fileSize);
+        sendCommand(fileCmdData);
+    }
+    public void getFileRequest(String fileName) throws IOException {
+        Command getFileCmdData = new Command().getFile(fileName);
+        sendCommand(getFileCmdData);
+    }
+    public void sendFileListRequest(String directory) throws IOException {
+        Command fileListCmdData = new Command().sendFileList(new ArrayList<>(), directory);
+        sendCommand(fileListCmdData);
+    }
+    public void sendFile(ViewController viewController) {
+        File fileToSend = viewController.getSelectedFile();
+        Long fileSize = fileToSend.length();
+        viewController.progressBar.setVisible(true);
+        try (InputStream fis = new FileInputStream(fileToSend)) {
+            int pointer = 0;
+            while (fileSize > buffer.length) {
+                fileSize -= pointer;
+                pointer = fis.read(buffer);
+                sendCommand(new Command().file(buffer, pointer));
+            }
+            byte[] lastBytes = new byte[Math.toIntExact(fileSize)];
+            pointer = fis.read(lastBytes);
+            sendCommand(new Command().file(lastBytes, pointer));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
