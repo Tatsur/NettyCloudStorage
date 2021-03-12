@@ -4,6 +4,7 @@ package com.ttsr;
 import com.ttsr.controllers.AuthDialogController;
 import com.ttsr.controllers.ViewController;
 import com.ttsr.models.Network;
+import com.ttsr.utils.UtilMethods;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -12,14 +13,16 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import jdk.jshell.execution.Util;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 
 public class ClientApp extends Application {
 
-    public static final List<String> USERS_TEST_DATA = List.of("Oleg", "Alexey", "Peter");
+    public static List<String> files = new ArrayList<>();
     public static Stage changeNameDialogStage;
 
     public static Stage primaryStage;
@@ -28,14 +31,24 @@ public class ClientApp extends Application {
     private ViewController viewController;
     public static boolean isClose = false;
 
+    public ViewController getViewController() {
+        return viewController;
+    }
+
     @Override
     public void start(Stage primaryStage) throws Exception {
         ClientApp.primaryStage = primaryStage;
-        network = new Network();
-        if (!network.connect()) {
-            showNetworkError("", "Failed to connect to server");
-            return;
-        }
+        Thread thread = new Thread(()->{
+            network = new Network();
+            network.connect();
+            network.setClientApp(this);
+            if (!network.connected) {
+                showNetworkError("", "Failed to connect to server");
+                return;
+            }
+        });
+        thread.setDaemon(true);
+        thread.start();
         openAuthDialog(primaryStage);
         creatCloudView(primaryStage);
     }
@@ -62,7 +75,7 @@ public class ClientApp extends Application {
         viewController = mainLoader.getController();
         viewController.loadHistory();
         viewController.setNetwork(network);
-
+        network.setViewController(viewController);
         primaryStage.setOnCloseRequest(event -> {
             viewController.saveHistory();
             network.close();
@@ -85,17 +98,15 @@ public class ClientApp extends Application {
         AuthDialogController authController = authLoader.getController();
         authController.setNetwork(network);
         authController.setClientApp(this);
-        //network.checkConnectionStatus();
     }
 
     public static void main(String[] args) {
         launch();
     }
 
-    public void openChat() {
+    public void openCloudView() {
         authDialogStage.close();
         primaryStage.show();
         primaryStage.setTitle(network.getLogin());
-        network.waitMessages(viewController);
     }
 }

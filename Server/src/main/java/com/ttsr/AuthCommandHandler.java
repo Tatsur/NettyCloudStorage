@@ -21,11 +21,9 @@ public class AuthCommandHandler extends SimpleChannelInboundHandler<Command> {
             AuthCmdData authCommand = (AuthCmdData) command.getData();
             String login = authCommand.getLogin();
             String password = authCommand.getPassword();
-            System.out.println(login+ " " + password);
             String authLogin = authService.getLogin(login, password);
-            System.out.println("authLogin  "+login);
             if (authLogin != null) {
-                ctx.writeAndFlush(new Command().okCmd(login,"Authentication successful"));
+                ctx.writeAndFlush(new Command().okCmd("Authentication successful"));
                 ctx.pipeline().remove(AuthCommandHandler.class);
                 ctx.pipeline().addLast(new InCommandHandler(serverApp, login));
                 ctx.pipeline().get(InCommandHandler.class).channelActive(ctx);
