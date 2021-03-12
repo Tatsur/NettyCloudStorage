@@ -19,8 +19,8 @@ public class Database {
             System.out.println("Database connected");
 //            logger.log(Level.INFO,"Database connected");
             this.connection = connection;
-//            createDB();
-//            writeDB();
+            createDB();
+            writeDB();
             users = getUsersFromDB();
         } catch (SQLException e ){
             logger.log(Level.ERROR,e.getMessage());
